@@ -4,6 +4,8 @@ defmodule Pow.Postgres.Store do
   alias Pow.Config
   import Ecto.Query
 
+  @a_really_really_long_time 77_777_777_777_777_777_777
+
   @type key() :: [any()] | binary()
   @type record() :: {key(), any()}
   @type key_match() :: [atom() | binary()]
@@ -13,20 +15,23 @@ defmodule Pow.Postgres.Store do
     schema = schema()
     namespace = namespace(config)
     now = DateTime.utc_now() |> DateTime.truncate(:second)
-    expires_at = case Config.get(config, :ttl) do
-      nil ->
-        nil
 
-      ttl when is_integer(ttl) ->
-        now
-        |> DateTime.add(ttl, :millisecond)
-        |> DateTime.truncate(:second)
-    end
+    expires_at =
+      case Config.get(config, :ttl) do
+        nil ->
+          nil
+
+        ttl when is_integer(ttl) ->
+          now
+          |> DateTime.add(@a_really_really_long_time, :millisecond)
+          |> DateTime.truncate(:second)
+      end
 
     records =
       List.wrap(record)
       |> Enum.map(fn {original_key, value} ->
         key = List.wrap(original_key)
+
         [
           namespace: namespace,
           key: Enum.map(key, &:erlang.term_to_binary/1),
@@ -34,16 +39,16 @@ defmodule Pow.Postgres.Store do
           value: :erlang.term_to_binary(value),
           expires_at: expires_at,
           inserted_at: now,
-          updated_at: now,
+          updated_at: now
         ]
       end)
 
     case repo().insert_all(
-        schema,
-        records,
-        on_conflict: {:replace, [:value, :expires_at, :updated_at]},
-        conflict_target: [:namespace, :original_key]
-      ) do
+           schema,
+           records,
+           on_conflict: {:replace, [:value, :expires_at, :updated_at]},
+           conflict_target: [:namespace, :original_key]
+         ) do
       {_rows, _entries} -> :ok
     end
   end
@@ -136,14 +141,17 @@ defmodule Pow.Postgres.Store do
     query = where(query, [s], fragment("array_length(?, 1) = ?", s.key, ^length(key_match)))
 
     key_match
-    |> Enum.with_index(1) # postgres index begins at 1
+    # postgres index begins at 1
+    |> Enum.with_index(1)
     |> Enum.reduce(query, fn {match, index}, query ->
       case match do
         :_ ->
           query
 
         key ->
-          from s in query, where: fragment("?[?] = ?", s.key, ^index, ^:erlang.term_to_binary(key))
+          from(s in query,
+            where: fragment("?[?] = ?", s.key, ^index, ^:erlang.term_to_binary(key))
+          )
       end
     end)
   end

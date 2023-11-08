@@ -4,7 +4,7 @@ defmodule Pow.Postgres.Store do
   alias Pow.Config
   import Ecto.Query
 
-  @a_really_really_long_time 77_777_777_777_777_777_777
+  @a_really_really_long_time 2_592_000_000
 
   @type key() :: [any()] | binary()
   @type record() :: {key(), any()}
